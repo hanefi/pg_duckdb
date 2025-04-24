@@ -606,11 +606,36 @@ DECLARE_PG_FUNCTION(duckdb_struct_subscript) {
 	PG_RETURN_POINTER(&duckdb_struct_subscript_routines);
 }
 
+void
+DuckdbMapSubscriptExecSetup(const SubscriptingRef *sbsref, SubscriptingRefState *sbsrefstate,
+                            SubscriptExecSteps *methods) {
+	DuckdbSubscriptExecSetup(sbsref, sbsrefstate, methods, "duckdb.map");
+}
+
+void
+DuckdbMapSubscriptTransform(SubscriptingRef *sbsref, List *indirection, struct ParseState *pstate, bool isSlice,
+                            bool isAssignment) {
+	DuckdbSubscriptTransform(sbsref, indirection, pstate, isSlice, isAssignment, "duckdb.map");
+}
+
+static SubscriptRoutines duckdb_map_subscript_routines = {
+    .transform = DuckdbMapSubscriptTransform,
+    .exec_setup = DuckdbMapSubscriptExecSetup,
+    .fetch_strict = false,
+    .fetch_leakproof = true,
+    .store_leakproof = true,
+};
+
+DECLARE_PG_FUNCTION(duckdb_map_subscript) {
+	PG_RETURN_POINTER(&duckdb_map_subscript_routines);
+}
+
 /*
  * DuckdbUnresolvedTypeSubscriptTransform is called by the parser when a
  * subscripting operation is performed on a duckdb.unresolved_type. All this
  * does is parse ensre that any subscript on duckdb.unresolved_type returns an
- * unrsolved type again.
+ * unrsolved type again. This is different from most of our subscripting for
+ * row/struct/map, since this allows subscripts with any type.
  */
 void
 DuckdbUnresolvedTypeSubscriptTransform(SubscriptingRef *sbsref, List *indirection, struct ParseState *pstate,
@@ -642,16 +667,10 @@ DuckdbUnresolvedTypeSubscriptTransform(SubscriptingRef *sbsref, List *indirectio
 	sbsref->reftypmod = -1;
 }
 
-/*
- * DuckdbUnresolvedTypeSubscriptExecSetup is called by the executor when a
- * subscripting operation is performed on a duckdb.unresolved_type. This should
- * never happen, because any query that contains a duckdb.unresolved_type should
- * automatically be use DuckDB execution.
- */
 void
-DuckdbUnresolvedTypeSubscriptExecSetup(const SubscriptingRef * /*sbsref*/, SubscriptingRefState * /*sbsrefstate*/,
-                                       SubscriptExecSteps * /*exprstate*/) {
-	elog(ERROR, "Subscripting duckdb.unresolved_type is not supported in the Postgres Executor");
+DuckdbUnresolvedTypeSubscriptExecSetup(const SubscriptingRef *sbsref, SubscriptingRefState *sbsrefstate,
+                                       SubscriptExecSteps *methods) {
+	DuckdbSubscriptExecSetup(sbsref, sbsrefstate, methods, "duckdb.unresolved_type");
 }
 
 static SubscriptRoutines duckdb_unresolved_type_subscript_routines = {
